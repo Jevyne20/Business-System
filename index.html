@@ -4,147 +4,332 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Matcha POS | System</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: #f4f7f6; overflow-x: hidden; }
+        .hidden { display: none !important; }
+
+        header {
+            background-color: #2d3e50; color: white; padding: 12px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1500;
+        }
+
+        .brand-name { font-weight: bold; font-size: 20px; letter-spacing: 1px; }
+
+        .sidebar {
+            height: 100%; width: 280px; position: fixed; top: 0; left: -280px;
+            background-color: #2d3e50; transition: 0.3s ease-in-out; z-index: 1600;
+        }
+        .sidebar.open { left: 0; }
+        .sidebar-header { background-color: #1a2633; padding: 25px 20px; color: white; border-bottom: 1px solid #455a64; }
+        .current-branch-label { font-size: 11px; text-transform: uppercase; color: #4CAF50; margin-bottom: 5px; display: block; }
+        #active-branch-display { font-size: 18px; font-weight: bold; display: block; }
+        .close-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; color: white; font-size: 30px; cursor: pointer; }
+
+        nav button {
+            display: block; width: 90%; margin: 8px auto; padding: 14px 18px;
+            background: none; border: 1px solid transparent; color: #cfd8dc;
+            text-align: left; cursor: pointer; border-radius: 8px; font-size: 16px;
+        }
+        nav button:hover { background-color: rgba(76, 175, 80, 0.1); color: #4CAF50; border: 1px solid #4CAF50; }
+
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #2d3e50; display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .branch-card { background: white; padding: 40px; border-radius: 15px; text-align: center; width: 90%; max-width: 400px; }
+
+        .content { padding: 20px; max-width: 1200px; margin: auto; }
+        section { display: none; }
+        section.active { display: block; }
+
+        .pos-layout { display: grid; grid-template-columns: 350px 1fr; gap: 20px; align-items: start; }
+        @media (max-width: 800px) { .pos-layout { grid-template-columns: 1fr; } }
+
+        .order-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .cart-box { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; max-height: 200px; overflow-y: auto; }
+        .cart-item { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; padding: 4px 0; }
+
+        .pending-grid { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px; }
+
+        .order-card {
+            border: 2px solid #FF9800; background: white; border-radius: 10px;
+            width: 180px; padding: 12px; cursor: pointer; transition: 0.3s; height: fit-content;
+        }
+        .order-card.expanded { width: 280px; }
+        .order-card h4 { margin: 0 0 5px 0; font-size: 14px; color: #e65100; }
+        .order-card .details { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dotted #FF9800; font-size: 13px; }
+        .order-card.expanded .details { display: block; }
+
+        .card-btns { display: flex; gap: 8px; margin-top: 10px; }
+        .card-btns button { flex: 1; border: none; padding: 10px; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
+        .btn-check { background: #4CAF50; }
+        .btn-x { background: #ff5252; }
+
+        .done-btn { background: #4CAF50; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; }
+        .add-item-btn { background: #2d3e50; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; width: 100%; margin-bottom: 10px; }
+        
+        select, input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+        .total-display { font-size: 22px; font-weight: bold; margin: 15px 0; text-align: center; color: #2d3e50; }
+
+        .sales-summary-card { background: #2d3e50; color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #2d3e50; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+    </style>
 </head>
 <body>
 
     <div id="branch-screen" class="overlay">
         <div class="branch-card">
-            <h2>Select Branch</h2>
-            <p>Choose a location to begin</p>
-            <div id="branch-list" class="branch-options">
-                <button onclick="selectBranch('Main Branch')">Main Branch</button>
+            <h1 style="color: #2d3e50; margin-top: 0;">MatchaBai</h1>
+            <div id="branch-list" class="branch-options"></div>
+            <button onclick="openAddBranchModal()" style="background:none; color:#4CAF50; border:2px dashed #4CAF50; width:100%; padding:12px; border-radius:8px; cursor:pointer; margin-top:10px;">+ Add New Branch</button>
+        </div>
+    </div>
+
+    <div id="main-system" class="hidden">
+        <header>
+            <button class="menu-toggle" onclick="toggleMenu()" style="background:#4CAF50; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold;">☰ MENU</button>
+            <span class="brand-name">MatchaBai</span>
+            <div style="width: 70px;"></div>
+        </header>
+
+        <div id="sidebar" class="sidebar">
+            <button class="close-btn" onclick="toggleMenu()">×</button>
+            <div class="sidebar-header">
+                <span class="current-branch-label">Active Branch</span>
+                <span id="active-branch-display">Loading...</span>
             </div>
-            <button class="add-branch-trigger" onclick="openAddBranchModal()">Add Branch +</button>
+            <nav>
+                <button onclick="navigateTo('pos')">🛒 POS System</button>
+                <button onclick="navigateTo('sales')">📊 Sales Log</button>
+                <button onclick="navigateTo('attendance')">👥 Attendance</button>
+                <button onclick="navigateTo('expenses')">💸 Expenses</button>
+                <hr style="border: 0; border-top: 1px solid #455a64; margin: 20px 15px;">
+                <button onclick="location.reload()" style="color: #ff5252;">🔄 Switch Branch</button>
+            </nav>
+        </div>
+
+        <div class="content">
+            <section id="pos" class="active">
+                <div class="pos-layout">
+                    <div>
+                        <h2 style="color: #2d3e50;">+ New Order</h2>
+                        <div class="order-container">
+                            <label>Item:</label>
+                            <select id="drink-select"></select>
+                            <label>Quantity:</label>
+                            <input type="number" id="order-qty" value="1" min="1">
+                            <button class="add-item-btn" onclick="addToCart()">+ Add to Order</button>
+                            <div class="cart-box" id="cart-items"></div>
+                            <div class="total-display" id="total-price">Total: ₱0.00</div>
+                            <button class="done-btn" onclick="confirmOrder()">Confirm Transaction</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 style="color: #2d3e50;">⏳ Pending Orders</h3>
+                        <div class="pending-grid" id="pending-orders-container"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sales">
+                <div class="sales-summary-card">
+                    <div>
+                        <span style="font-size: 12px; opacity: 0.8; letter-spacing: 1px;">TOTAL SALES (THIS SESSION)</span>
+                        <div id="session-total" style="font-size: 32px; font-weight: bold;">₱0.00</div>
+                    </div>
+                    <button onclick="clearSalesLog()" style="background:#ff5252; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">Clear Records</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Details</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-history-body"></tbody>
+                </table>
+            </section>
+
+            <section id="attendance"><h2>Attendance</h2><p>Feature coming soon...</p></section>
+            <section id="expenses"><h2>Expenses</h2><p>Feature coming soon...</p></section>
         </div>
     </div>
 
     <div id="add-branch-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <h3>New Branch</h3>
-            <input type="text" id="new-branch-input" placeholder="Enter Branch Name">
-            <div class="modal-actions">
-                <button class="cancel-btn" onclick="closeAddBranchModal()">Cancel</button>
-                <button class="done-btn" onclick="saveNewBranch()">Done</button>
+            <input type="text" id="new-branch-input" placeholder="Enter branch name">
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeAddBranchModal()" style="flex:1; padding:12px; background:#ddd; border:none; border-radius:8px;">Cancel</button>
+                <button onclick="saveNewBranch()" style="flex:1; padding:12px; background:#4CAF50; color:white; border:none; border-radius:8px;">Save</button>
             </div>
-        </div>
-    </div>
-
-    <div id="main-system" class="hidden">
-        <header>
-            <button class="menu-toggle" onclick="toggleMenu()">☰ Menu</button>
-            <div class="header-info">
-                <span id="active-branch-display">Branch: None</span>
-            </div>
-        </header>
-
-        <div id="sidebar" class="sidebar">
-            <button class="close-btn" onclick="toggleMenu()">×</button>
-            <nav>
-                <button onclick="navigateTo('pos')">POS System</button>
-                <button onclick="navigateTo('sales')">Sales Log</button>
-                <button onclick="navigateTo('attendance')">Attendance</button>
-                <button onclick="navigateTo('expenses')">Expenses</button>
-                <hr style="border: 0.5px solid #455a64; margin: 20px 0;">
-                <button onclick="location.reload()" style="color: #ff5252;">Switch Branch</button>
-            </nav>
-        </div>
-
-        <div class="content">
-            <section id="pos" class="active">
-                <h1>POS System</h1>
-                <p>Welcome! Record your orders here.</p>
-                </section>
-
-            <section id="sales">
-                <h1>Sales Log</h1>
-                <p>Daily transaction history.</p>
-            </section>
-
-            <section id="attendance">
-                <h1>Attendance</h1>
-                <p>Monitor Employee Time In/Out.</p>
-            </section>
-
-            <section id="expenses">
-                <h1>Expenses</h1>
-                <p>Track your daily costs.</p>
-            </section>
         </div>
     </div>
 
 <script>
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H/pub?output=csv';
+    
+    let currentCart = [];
+    let pendingOrders = [];
+    let sessionTotal = 0;
+
     window.onload = function() {
         renderBranches();
+        fetchMenuData();
     };
+
+    async function fetchMenuData() {
+        try {
+            const response = await fetch(`${sheetUrl}&t=${new Date().getTime()}`);
+            const data = await response.text();
+            const rows = data.split('\n').filter(r => r.trim() !== '').slice(1);
+            const select = document.getElementById("drink-select");
+            select.innerHTML = ""; 
+            rows.forEach(row => {
+                const cols = row.split(',');
+                if (cols.length >= 2) {
+                    const name = cols[0].replace(/"/g, "").trim();
+                    const price = parseFloat(cols[1].replace(/"/g, "").trim());
+                    if (!isNaN(price)) {
+                        let opt = document.createElement("option");
+                        opt.value = price;
+                        opt.text = `${name} (₱${price})`;
+                        opt.dataset.name = name;
+                        select.appendChild(opt);
+                    }
+                }
+            });
+        } catch (e) { console.error("Sheets Error:", e); }
+    }
+
+    function addToCart() {
+        const select = document.getElementById("drink-select");
+        if(!select.value) return;
+        const name = select.options[select.selectedIndex].dataset.name;
+        const price = parseFloat(select.value);
+        const qty = parseInt(document.getElementById("order-qty").value);
+        currentCart.push({ name, price, qty, subtotal: price * qty });
+        renderCart();
+    }
+
+    function renderCart() {
+        const cartDiv = document.getElementById("cart-items");
+        let total = 0;
+        cartDiv.innerHTML = currentCart.map(item => {
+            total += item.subtotal;
+            return `<div class="cart-item"><span>${item.qty}x ${item.name}</span><span>₱${item.subtotal}</span></div>`;
+        }).join('');
+        document.getElementById("total-price").innerText = `Total: ₱${total.toLocaleString()}`;
+    }
+
+    function confirmOrder() {
+        if (currentCart.length === 0) return;
+        const orderId = Date.now();
+        const total = currentCart.reduce((sum, i) => sum + i.subtotal, 0);
+        pendingOrders.push({ id: orderId, items: [...currentCart], total });
+        currentCart = [];
+        renderCart();
+        renderPending();
+    }
+
+    function renderPending() {
+        const container = document.getElementById("pending-orders-container");
+        container.innerHTML = pendingOrders.map(order => `
+            <div class="order-card" id="card-${order.id}" onclick="toggleCard(${order.id})">
+                <h4>Order #${order.id.toString().slice(-4)}</h4>
+                <div style="font-size:12px; color:#666;">Total: ₱${order.total.toLocaleString()}</div>
+                <div class="details">
+                    ${order.items.map(i => `<div style="margin:3px 0">• ${i.qty}x ${i.name}</div>`).join('')}
+                    <div class="card-btns">
+                        <button class="btn-check" onclick="finalizeOrder(event, ${order.id})">✔ Done</button>
+                        <button class="btn-x" onclick="removeOrder(event, ${order.id})">✖</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function toggleCard(id) { document.getElementById(`card-${id}`).classList.toggle('expanded'); }
+
+    function finalizeOrder(event, id) {
+        event.stopPropagation();
+        const order = pendingOrders.find(o => o.id === id);
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const itemList = order.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+        const row = `<tr>
+            <td style="color:#666; font-size:13px;">${time}</td>
+            <td style="font-weight:500;">${itemList}</td>
+            <td style="color:#4CAF50; font-weight:bold;">₱${order.total.toLocaleString()}</td>
+        </tr>`;
+        
+        document.getElementById("sales-history-body").insertAdjacentHTML('afterbegin', row);
+        sessionTotal += order.total;
+        document.getElementById("session-total").innerText = `₱${sessionTotal.toLocaleString()}`;
+        removeOrder(event, id);
+    }
+
+    function removeOrder(event, id) {
+        event.stopPropagation();
+        pendingOrders = pendingOrders.filter(o => o.id !== id);
+        renderPending();
+    }
+
+    function clearSalesLog() {
+        if(confirm("Clear this session's sales log?")) {
+            document.getElementById("sales-history-body").innerHTML = "";
+            sessionTotal = 0;
+            document.getElementById("session-total").innerText = "₱0.00";
+        }
+    }
 
     function renderBranches() {
         const list = document.getElementById("branch-list");
         let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
-        
-        // Start with the default Main Branch (which cannot be deleted)
-        let html = `<div class="branch-item">
-                        <button onclick="selectBranch('Main Branch')">Main Branch</button>
-                    </div>`;
-
-        // Add custom branches with a Delete button
-        branches.forEach((branch, index) => {
-            html += `
-                <div class="branch-item">
-                    <button onclick="selectBranch('${branch}')">${branch}</button>
-                    <span class="delete-icon" onclick="deleteBranch(${index})">×</span>
-                </div>`;
+        let html = `<div style="display:flex; margin-bottom:10px;"><button onclick="selectBranch('Main Branch')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Main Branch</button></div>`;
+        branches.forEach((b, i) => {
+            html += `<div style="display:flex; margin-bottom:10px;">
+                <button onclick="selectBranch('${b}')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px 0 0 8px; font-weight:bold; cursor:pointer;">${b}</button>
+                <button onclick="deleteBranch(${i})" style="background:#ff5252; color:white; border:none; width:45px; border-radius:0 8px 8px 0; cursor:pointer;">×</button>
+            </div>`;
         });
-        
         list.innerHTML = html;
     }
 
-    function deleteBranch(index) {
-        if (confirm("Are you sure you want to delete this branch?")) {
-            let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
-            branches.splice(index, 1); // Remove the branch at that index
-            localStorage.setItem("matchaBranches", JSON.stringify(branches));
-            renderBranches(); // Refresh the list
-        }
+    function selectBranch(name) {
+        document.getElementById("branch-screen").classList.add("hidden");
+        document.getElementById("main-system").classList.remove("hidden");
+        document.getElementById("active-branch-display").innerText = name;
     }
 
-    function openAddBranchModal() {
-        document.getElementById("add-branch-modal").classList.remove("hidden");
-        document.getElementById("new-branch-input").focus();
-    }
-
-    function closeAddBranchModal() {
-        document.getElementById("add-branch-modal").classList.add("hidden");
-        document.getElementById("new-branch-input").value = "";
-    }
+    function openAddBranchModal() { document.getElementById("add-branch-modal").classList.remove("hidden"); }
+    function closeAddBranchModal() { document.getElementById("add-branch-modal").classList.add("hidden"); }
 
     function saveNewBranch() {
         const name = document.getElementById("new-branch-input").value;
-        if (name.trim() === "") return alert("Please enter a branch name");
-
-        let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
-        branches.push(name);
-        localStorage.setItem("matchaBranches", JSON.stringify(branches));
-        
+        if (!name) return;
+        let b = JSON.parse(localStorage.getItem("matchaBranches")) || [];
+        b.push(name);
+        localStorage.setItem("matchaBranches", JSON.stringify(b));
         renderBranches();
-        selectBranch(name); 
         closeAddBranchModal();
     }
 
-    function selectBranch(branchName) {
-        document.getElementById("branch-screen").classList.add("hidden");
-        document.getElementById("main-system").classList.remove("hidden");
-        document.getElementById("active-branch-display").innerText = "Branch: " + branchName;
+    function deleteBranch(i) {
+        if (confirm("Delete branch?")) {
+            let b = JSON.parse(localStorage.getItem("matchaBranches"));
+            b.splice(i, 1);
+            localStorage.setItem("matchaBranches", JSON.stringify(b));
+            renderBranches();
+        }
     }
 
-    function toggleMenu() {
-        document.getElementById("sidebar").classList.toggle("open");
-    }
-
-    function navigateTo(sectionId) {
-        const sections = document.querySelectorAll('section');
-        sections.forEach(sec => sec.classList.remove('active'));
-        document.getElementById(sectionId).classList.add('active');
+    function toggleMenu() { document.getElementById("sidebar").classList.toggle("open"); }
+    function navigateTo(id) {
+        document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
         toggleMenu();
     }
 </script>
