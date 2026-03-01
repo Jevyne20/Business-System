@@ -169,6 +169,7 @@
     </div>
 
 <script>
+    // YOUR UPDATED LINK
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H/pub?output=csv';
     
     let currentCart = [];
@@ -181,35 +182,59 @@
     };
 
     async function fetchMenuData() {
+        const select = document.getElementById("drink-select");
+        select.innerHTML = "<option>Refreshing menu...</option>";
+        
         try {
-            const response = await fetch(`${sheetUrl}&t=${new Date().getTime()}`);
+            // Added nocache to prevent browser from showing old menu versions
+            const response = await fetch(`${sheetUrl}&nocache=${new Date().getTime()}`);
+            if (!response.ok) throw new Error('Sheet not accessible');
+            
             const data = await response.text();
-            const rows = data.split('\n').filter(r => r.trim() !== '').slice(1);
-            const select = document.getElementById("drink-select");
-            select.innerHTML = ""; 
-            rows.forEach(row => {
-                const cols = row.split(',');
+            
+            // Clean the data: remove empty lines and split by row
+            const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
+            
+            select.innerHTML = ""; // Clear the loading message
+
+            // Skip the first row (header) and loop through data
+            rows.slice(1).forEach(row => {
+                // Regex to handle commas inside quotes (e.g., "Matcha, Special", 120)
+                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                
                 if (cols.length >= 2) {
                     const name = cols[0].replace(/"/g, "").trim();
                     const price = parseFloat(cols[1].replace(/"/g, "").trim());
+                    
                     if (!isNaN(price)) {
                         let opt = document.createElement("option");
                         opt.value = price;
-                        opt.text = `${name} (₱${price})`;
+                        opt.text = `${name} (₱${price.toLocaleString()})`;
                         opt.dataset.name = name;
                         select.appendChild(opt);
                     }
                 }
             });
-        } catch (e) { console.error("Sheets Error:", e); }
+
+            if(select.options.length === 0) {
+                select.innerHTML = "<option>No items found. Check Sheet columns A & B.</option>";
+            }
+
+        } catch (e) {
+            console.error("Fetch Error:", e);
+            select.innerHTML = "<option>Connection Error. Try refreshing.</option>";
+        }
     }
 
+    // --- POS LOGIC ---
     function addToCart() {
         const select = document.getElementById("drink-select");
-        if(!select.value) return;
+        if(!select.value || select.value.includes("Error")) return;
+        
         const name = select.options[select.selectedIndex].dataset.name;
         const price = parseFloat(select.value);
         const qty = parseInt(document.getElementById("order-qty").value);
+        
         currentCart.push({ name, price, qty, subtotal: price * qty });
         renderCart();
     }
@@ -219,7 +244,7 @@
         let total = 0;
         cartDiv.innerHTML = currentCart.map(item => {
             total += item.subtotal;
-            return `<div class="cart-item"><span>${item.qty}x ${item.name}</span><span>₱${item.subtotal}</span></div>`;
+            return `<div class="cart-item"><span>${item.qty}x ${item.name}</span><span>₱${item.subtotal.toLocaleString()}</span></div>`;
         }).join('');
         document.getElementById("total-price").innerText = `Total: ₱${total.toLocaleString()}`;
     }
@@ -241,7 +266,7 @@
                 <h4>Order #${order.id.toString().slice(-4)}</h4>
                 <div style="font-size:12px; color:#666;">Total: ₱${order.total.toLocaleString()}</div>
                 <div class="details">
-                    ${order.items.map(i => `<div style="margin:3px 0">• ${i.qty}x ${i.name}</div>`).join('')}
+                    ${order.items.map(i => `<div>• ${i.qty}x ${i.name}</div>`).join('')}
                     <div class="card-btns">
                         <button class="btn-check" onclick="finalizeOrder(event, ${order.id})">✔ Done</button>
                         <button class="btn-x" onclick="removeOrder(event, ${order.id})">✖</button>
@@ -251,8 +276,6 @@
         `).join('');
     }
 
-    function toggleCard(id) { document.getElementById(`card-${id}`).classList.toggle('expanded'); }
-
     function finalizeOrder(event, id) {
         event.stopPropagation();
         const order = pendingOrders.find(o => o.id === id);
@@ -260,8 +283,8 @@
         
         const itemList = order.items.map(i => `${i.qty}x ${i.name}`).join(', ');
         const row = `<tr>
-            <td style="color:#666; font-size:13px;">${time}</td>
-            <td style="font-weight:500;">${itemList}</td>
+            <td style="color:#666;">${time}</td>
+            <td>${itemList}</td>
             <td style="color:#4CAF50; font-weight:bold;">₱${order.total.toLocaleString()}</td>
         </tr>`;
         
@@ -277,8 +300,13 @@
         renderPending();
     }
 
+    function toggleCard(id) { 
+        const card = document.getElementById(`card-${id}`);
+        if(card) card.classList.toggle('expanded'); 
+    }
+
     function clearSalesLog() {
-        if(confirm("Clear this session's sales log?")) {
+        if(confirm("Clear log?")) {
             document.getElementById("sales-history-body").innerHTML = "";
             sessionTotal = 0;
             document.getElementById("session-total").innerText = "₱0.00";
