@@ -434,14 +434,17 @@
             .map(([name, qty]) => `${qty}x ${name}`)
             .join(', ');
 
-        const payload = {
-            action: "sales",
-            date: formattedDate,
-            totalCups: cupCount, // Sent as a clean number
-            itemSummary: summaryItems,
-            totalSales: totalSalesValue,
-            branch: currentBranch
-        };
+        // Ensure cupCount is a clean integer before sending
+const cupCount = Number(totalCups) || 0; 
+
+const payload = {
+    action: "sales",
+    date: formattedDate,
+    totalCups: cupCount, 
+    itemSummary: summaryItems,
+    totalSales: totalSalesValue,
+    branch: currentBranch
+};
 
         if(confirm(`Upload Summary for ${currentBranch}?\nCups Sold: ${cupCount}\nTotal: ₱${totalSalesValue.toLocaleString()}`)) {
             try {
