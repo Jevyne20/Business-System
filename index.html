@@ -385,6 +385,17 @@ async function uploadDailySummary() {
             });
         });
 
+        // to ensure the cup count is accurate before sending
+let totalCups = 0;
+localSales.forEach(sale => {
+    sale.items.forEach(item => {
+        // Only count drinks; skip items like "Fries" if you only want a cup count
+        if (!item.name.toLowerCase().includes("fries")) { 
+            totalCups += Number(item.qty); 
+        }
+    });
+});
+
         const summaryItems = Object.entries(itemQuantities)
             .map(([name, qty]) => `${qty}x ${name}`)
             .join(', ');
