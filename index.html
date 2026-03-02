@@ -169,9 +169,6 @@
     </div>
 
 <script>
-    // YOUR UPDATED LINK
-   const sheetUrl = 'https://docs.google.com/spreadsheets/d/1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8/edit?usp=sharing';
-    
     let currentCart = [];
     let pendingOrders = [];
     let sessionTotal = 0;
@@ -181,72 +178,59 @@
         fetchMenuData();
     };
 
-async function fetchMenuData() {
-    const select = document.getElementById("drink-select");
-    select.innerHTML = "<option>Connecting to Matcha Sheet...</option>";
+    async function fetchMenuData() {
+        const select = document.getElementById("drink-select");
+        select.innerHTML = "<option>Loading Matcha Menu...</option>";
 
-    // This is the ID from the new URL you just provided
-    const sheetId = '1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8';
-    // Using gid=0 as seen in your link
-    const menuGid = '0'; 
-    
-    const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${menuGid}`;
+        const sheetId = '1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8';
+        const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
 
-    try {
-        // Adding a timestamp to force Google to give us the freshest data
-        const response = await fetch(`${exportUrl}&t=${new Date().getTime()}`);
-        
-        if (!response.ok) throw new Error('Access Denied');
-        
-        const data = await response.text();
-        const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
-        
-        if (rows.length < 2) {
-            select.innerHTML = "<option>Sheet is connected but empty</option>";
-            return;
-        }
-
-        select.innerHTML = ""; 
-
-        rows.forEach((row, index) => {
-            if (index === 0) return; // Skip Header
-
-            // Split by comma, handling quotes
-            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        try {
+            const response = await fetch(`${exportUrl}&t=${new Date().getTime()}`);
+            if (!response.ok) throw new Error('Access Denied');
             
-            // Layout: B=1 (Name), D=3 (Price)
-            if (cols.length >= 4) {
-                const name = cols[1].replace(/"/g, "").trim();
-                let priceRaw = cols[3].replace(/"/g, "").replace(/[^\d.-]/g, "").trim();
-                const price = parseFloat(priceRaw);
+            const data = await response.text();
+            const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
+            
+            select.innerHTML = ""; 
+
+            rows.forEach((row, index) => {
+                if (index === 0) return; 
+                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 
-                if (name !== "" && !isNaN(price)) {
-                    let opt = document.createElement("option");
-                    opt.value = price;
-                    opt.text = `${name} (₱${price.toLocaleString()})`;
-                    opt.dataset.name = name;
-                    select.appendChild(opt);
+                if (cols.length >= 4) {
+                    const name = cols[1].replace(/"/g, "").trim();
+                    let priceRaw = cols[3].replace(/"/g, "").replace(/[^\d.-]/g, "").trim();
+                    const price = parseFloat(priceRaw);
+                    
+                    if (name !== "" && !isNaN(price)) {
+                        let opt = document.createElement("option");
+                        opt.value = price;
+                        opt.text = `${name} (₱${price.toFixed(2)})`;
+                        opt.dataset.name = name;
+                        select.appendChild(opt);
+                    }
                 }
+            });
+
+            if (select.options.length === 0) {
+                select.innerHTML = "<option>No items found in Sheet</option>";
             }
-        });
 
-        if(select.options.length === 0) {
-            select.innerHTML = "<option>Check Data in Columns B and D</option>";
+        } catch (e) {
+            console.error("Fetch Error:", e);
+            select.innerHTML = "<option>LINK ERROR: Check Share Settings</option>";
         }
-
-    } catch (e) {
-        console.error(e);
-        select.innerHTML = "<option>Link Error: Please set Share to 'Anyone'</option>";
     }
-}
+
     // --- POS LOGIC ---
     function addToCart() {
         const select = document.getElementById("drink-select");
-        if(!select.value || select.value.includes("Error")) return;
+        if(!select.value || select.value.includes("Loading")) return;
         
         const name = select.options[select.selectedIndex].dataset.name;
         const price = parseFloat(select.value);
-        const qty = parseInt(document.getElementById("order-qty").value);
+        const qty = parseInt(document.getElementById("order-qty").value) || 1;
         
         currentCart.push({ name, price, qty, subtotal: price * qty });
         renderCart();
@@ -255,11 +239,20 @@ async function fetchMenuData() {
     function renderCart() {
         const cartDiv = document.getElementById("cart-items");
         let total = 0;
-        cartDiv.innerHTML = currentCart.map(item => {
+        cartDiv.innerHTML = currentCart.map((item, index) => {
             total += item.subtotal;
-            return `<div class="cart-item"><span>${item.qty}x ${item.name}</span><span>₱${item.subtotal.toLocaleString()}</span></div>`;
+            return `
+                <div class="cart-item" onclick="removeFromCart(${index})" style="cursor:pointer;" title="Click to remove">
+                    <span>${item.qty}x ${item.name}</span>
+                    <span>₱${item.subtotal.toLocaleString()}</span>
+                </div>`;
         }).join('');
         document.getElementById("total-price").innerText = `Total: ₱${total.toLocaleString()}`;
+    }
+
+    function removeFromCart(index) {
+        currentCart.splice(index, 1);
+        renderCart();
     }
 
     function confirmOrder() {
@@ -268,6 +261,7 @@ async function fetchMenuData() {
         const total = currentCart.reduce((sum, i) => sum + i.subtotal, 0);
         pendingOrders.push({ id: orderId, items: [...currentCart], total });
         currentCart = [];
+        document.getElementById("order-qty").value = 1; // Reset qty
         renderCart();
         renderPending();
     }
@@ -291,10 +285,13 @@ async function fetchMenuData() {
 
     function finalizeOrder(event, id) {
         event.stopPropagation();
-        const order = pendingOrders.find(o => o.id === id);
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const orderIndex = pendingOrders.findIndex(o => o.id === id);
+        if (orderIndex === -1) return;
         
+        const order = pendingOrders[orderIndex];
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const itemList = order.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+        
         const row = `<tr>
             <td style="color:#666;">${time}</td>
             <td>${itemList}</td>
@@ -304,13 +301,17 @@ async function fetchMenuData() {
         document.getElementById("sales-history-body").insertAdjacentHTML('afterbegin', row);
         sessionTotal += order.total;
         document.getElementById("session-total").innerText = `₱${sessionTotal.toLocaleString()}`;
-        removeOrder(event, id);
+        
+        pendingOrders.splice(orderIndex, 1);
+        renderPending();
     }
 
     function removeOrder(event, id) {
         event.stopPropagation();
-        pendingOrders = pendingOrders.filter(o => o.id !== id);
-        renderPending();
+        if(confirm("Cancel this order?")) {
+            pendingOrders = pendingOrders.filter(o => o.id !== id);
+            renderPending();
+        }
     }
 
     function toggleCard(id) { 
@@ -319,20 +320,26 @@ async function fetchMenuData() {
     }
 
     function clearSalesLog() {
-        if(confirm("Clear log?")) {
+        if(confirm("Permanently clear session log?")) {
             document.getElementById("sales-history-body").innerHTML = "";
             sessionTotal = 0;
             document.getElementById("session-total").innerText = "₱0.00";
         }
     }
 
+    // --- BRANCH LOGIC ---
     function renderBranches() {
         const list = document.getElementById("branch-list");
-        let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
-        let html = `<div style="display:flex; margin-bottom:10px;"><button onclick="selectBranch('Main Branch')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Main Branch</button></div>`;
+        let branches = [];
+        try {
+            branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
+        } catch(e) { branches = []; }
+
+        let html = `<div style="display:flex; margin-bottom:10px;"><button onclick="selectBranch('Main Branch')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">🏠 Main Branch</button></div>`;
+        
         branches.forEach((b, i) => {
             html += `<div style="display:flex; margin-bottom:10px;">
-                <button onclick="selectBranch('${b}')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px 0 0 8px; font-weight:bold; cursor:pointer;">${b}</button>
+                <button onclick="selectBranch('${b}')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px 0 0 8px; font-weight:bold; cursor:pointer;">📍 ${b}</button>
                 <button onclick="deleteBranch(${i})" style="background:#ff5252; color:white; border:none; width:45px; border-radius:0 8px 8px 0; cursor:pointer;">×</button>
             </div>`;
         });
@@ -345,21 +352,27 @@ async function fetchMenuData() {
         document.getElementById("active-branch-display").innerText = name;
     }
 
-    function openAddBranchModal() { document.getElementById("add-branch-modal").classList.remove("hidden"); }
+    function openAddBranchModal() { 
+        document.getElementById("add-branch-modal").classList.remove("hidden"); 
+        document.getElementById("new-branch-input").focus();
+    }
     function closeAddBranchModal() { document.getElementById("add-branch-modal").classList.add("hidden"); }
 
     function saveNewBranch() {
-        const name = document.getElementById("new-branch-input").value;
+        const input = document.getElementById("new-branch-input");
+        const name = input.value.trim();
         if (!name) return;
+        
         let b = JSON.parse(localStorage.getItem("matchaBranches")) || [];
         b.push(name);
         localStorage.setItem("matchaBranches", JSON.stringify(b));
+        input.value = "";
         renderBranches();
         closeAddBranchModal();
     }
 
     function deleteBranch(i) {
-        if (confirm("Delete branch?")) {
+        if (confirm("Remove this branch from your local list?")) {
             let b = JSON.parse(localStorage.getItem("matchaBranches"));
             b.splice(i, 1);
             localStorage.setItem("matchaBranches", JSON.stringify(b));
@@ -368,10 +381,11 @@ async function fetchMenuData() {
     }
 
     function toggleMenu() { document.getElementById("sidebar").classList.toggle("open"); }
+    
     function navigateTo(id) {
         document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        toggleMenu();
+        if (window.innerWidth < 800) toggleMenu(); 
     }
 </script>
 </body>
