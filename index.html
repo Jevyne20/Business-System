@@ -188,15 +188,13 @@
 <script>
     let currentCart = [];
     let pendingOrders = [];
-    
-    // PERSISTENCE LOGIC
-    let localSales = JSON.parse(localStorage.getItem("matchaSalesLog")) || [];
-    let orderCounter = parseInt(localStorage.getItem("matchaOrderCounter")) || 1;
+    let currentBranch = "";
+    let localSales = [];
+    let orderCounter = 1;
 
     window.onload = function() {
         renderBranches();
         fetchMenuData();
-        renderSalesLog();
     };
 
     async function fetchMenuData() {
@@ -228,6 +226,25 @@
                 }
             });
         } catch (e) { console.error(e); }
+    }
+
+    // BRANCH LOGIC - ISOLATED SALES
+    function selectBranch(name) {
+        currentBranch = name;
+        document.getElementById("branch-screen").classList.add("hidden");
+        document.getElementById("main-system").classList.remove("hidden");
+        document.getElementById("active-branch-display").innerText = name;
+        
+        // Load branch-specific sales log and counter
+        localSales = JSON.parse(localStorage.getItem(`matchaSalesLog_${name}`)) || [];
+        orderCounter = parseInt(localStorage.getItem(`matchaOrderCounter_${name}`)) || 1;
+        
+        renderSalesLog();
+    }
+
+    function saveBranchData() {
+        localStorage.setItem(`matchaSalesLog_${currentBranch}`, JSON.stringify(localSales));
+        localStorage.setItem(`matchaOrderCounter_${currentBranch}`, orderCounter);
     }
 
     function addToCart() {
@@ -265,7 +282,7 @@
         
         pendingOrders.push({ id: currentOrderNum, items: [...currentCart], total });
         orderCounter++;
-        localStorage.setItem("matchaOrderCounter", orderCounter);
+        saveBranchData();
 
         currentCart = [];
         document.getElementById("order-qty").value = 1; 
@@ -300,9 +317,7 @@
         const now = new Date();
         const dateStr = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
         
-        // ADD TO LOCAL STORAGE LOG
         const saleRecord = {
-            orderNum: order.id,
             date: dateStr,
             fullDate: now.toLocaleDateString(),
             items: order.items,
@@ -310,39 +325,43 @@
         };
         
         localSales.push(saleRecord);
-        localStorage.setItem("matchaSalesLog", JSON.stringify(localSales));
+        saveBranchData();
         
         renderSalesLog();
         pendingOrders.splice(orderIndex, 1);
         renderPending();
     }
 
+    // SMART SEQUENCING: Uses 'index + 1' to keep numbering continuous even after deletion
     function renderSalesLog() {
         const body = document.getElementById("sales-history-body");
-        let total = 0;
+        let sessionTotal = 0;
         
-        // Sort reverse so latest is on top
+        // Reverse for display, but keep track of real index for deletion
         const displaySales = [...localSales].reverse();
         
         body.innerHTML = displaySales.map((sale, revIndex) => {
-            total += sale.total;
+            sessionTotal += sale.total;
             const actualIndex = localSales.length - 1 - revIndex;
+            const orderSequence = actualIndex + 1; // Real-time Order #
             const itemString = sale.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+            
             return `<tr>
-                <td>#${sale.orderNum} | ${sale.date}</td>
+                <td>#${orderSequence} | ${sale.date}</td>
                 <td>${itemString}</td>
                 <td style="color:#2d3e50; font-weight:bold;">₱${sale.total.toLocaleString()}</td>
                 <td><button class="delete-sale-btn" onclick="deleteSaleEntry(${actualIndex})">X</button></td>
             </tr>`;
         }).join('');
         
-        document.getElementById("session-total").innerText = `₱${total.toLocaleString()}`;
+        document.getElementById("session-total").innerText = `₱${sessionTotal.toLocaleString()}`;
     }
 
     function deleteSaleEntry(index) {
-        if(confirm("Permanently delete this order from local log?")) {
+        if(confirm("Permanently delete this order? All following orders will be re-sequenced.")) {
             localSales.splice(index, 1);
-            localStorage.setItem("matchaSalesLog", JSON.stringify(localSales));
+            orderCounter = localSales.length + 1; // Sync counter with sequence
+            saveBranchData();
             renderSalesLog();
         }
     }
@@ -350,49 +369,47 @@
     async function uploadDailySummary() {
         if(localSales.length === 0) return alert("No sales data to upload.");
         
-        // 1. GENERATE SUMMARY
         let totalSales = 0;
+        let totalCups = 0;
         let itemQuantities = {};
-        const todayDate = localSales[0].fullDate;
-        const branchName = document.getElementById("active-branch-display").innerText;
+        const todayDate = new Date().toLocaleDateString();
 
         localSales.forEach(sale => {
             totalSales += sale.total;
             sale.items.forEach(item => {
+                totalCups += item.qty;
                 itemQuantities[item.name] = (itemQuantities[item.name] || 0) + item.qty;
             });
         });
 
-        // Convert item map to readable string: "5x Matcha, 2x Taro"
         const summaryItems = Object.entries(itemQuantities)
             .map(([name, qty]) => `${qty}x ${name}`)
             .join(', ');
 
+        // MATCHES YOUR EXCEL: A: Date, B: Total Cups, C: Items, D: Total, E: Branch
         const payload = {
             date: todayDate,
-            totalSales: totalSales,
+            totalCups: totalCups,
             itemSummary: summaryItems,
-            branch: branchName
+            totalSales: totalSales,
+            branch: currentBranch
         };
 
         const scriptURL = "https://script.google.com/macros/s/AKfycbxfGrIfSdNv2NQeK-iMJpBva_3jTTjgiG7TxN-jxJSbKKkCHfXZA3Y6eJdiLYh9X2z6FA/exec";
 
-        if(confirm(`Upload Summary for ${todayDate}?\nTotal: ₱${totalSales.toLocaleString()}\nSummary: ${summaryItems}`)) {
+        if(confirm(`Upload Summary for ${currentBranch}?\nCups Sold: ${totalCups}\nTotal: ₱${totalSales.toLocaleString()}`)) {
             try {
-                // We use 'no-cors' for Google Script POST
                 await fetch(scriptURL, {
                     method: 'POST',
                     mode: 'no-cors',
                     body: JSON.stringify(payload)
                 });
                 
-                alert("Upload Successful! Local log will now clear.");
+                alert("Upload Successful!");
                 
-                // CLEAR EVERYTHING FOR THE NEXT DAY
                 localSales = [];
                 orderCounter = 1;
-                localStorage.setItem("matchaSalesLog", JSON.stringify(localSales));
-                localStorage.setItem("matchaOrderCounter", orderCounter);
+                saveBranchData();
                 renderSalesLog();
                 
             } catch (e) {
@@ -427,12 +444,6 @@
         list.innerHTML = html;
     }
 
-    function selectBranch(name) {
-        document.getElementById("branch-screen").classList.add("hidden");
-        document.getElementById("main-system").classList.remove("hidden");
-        document.getElementById("active-branch-display").innerText = name;
-    }
-
     function openAddBranchModal() { document.getElementById("add-branch-modal").classList.remove("hidden"); }
     function closeAddBranchModal() { document.getElementById("add-branch-modal").classList.add("hidden"); }
 
@@ -449,8 +460,11 @@
     }
 
     function deleteBranch(i) {
-        if (confirm("Delete branch?")) {
+        if (confirm("Delete branch and its local sales history?")) {
             let b = JSON.parse(localStorage.getItem("matchaBranches"));
+            const name = b[i];
+            localStorage.removeItem(`matchaSalesLog_${name}`);
+            localStorage.removeItem(`matchaOrderCounter_${name}`);
             b.splice(i, 1);
             localStorage.setItem("matchaBranches", JSON.stringify(b));
             renderBranches();
