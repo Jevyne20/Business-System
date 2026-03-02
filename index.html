@@ -170,7 +170,7 @@
 
 <script>
     // YOUR UPDATED LINK
-   const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H/pubhtml';
+   const sheetUrl = 'https://docs.google.com/spreadsheets/d/1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8/edit?usp=sharing';
     
     let currentCart = [];
     let pendingOrders = [];
@@ -183,26 +183,26 @@
 
 async function fetchMenuData() {
     const select = document.getElementById("drink-select");
-    select.innerHTML = "<option>Reading MENU tab...</option>";
+    select.innerHTML = "<option>Connecting to Matcha Sheet...</option>";
 
-    const sheetId = '1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H';
-    
-    // REPLACE '0' WITH YOUR ACTUAL GID FROM THE BROWSER URL
+    // This is the ID from the new URL you just provided
+    const sheetId = '1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8';
+    // Using gid=0 as seen in your link
     const menuGid = '0'; 
     
-    const exportUrl = `https://docs.google.com/spreadsheets/d/1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8/edit?usp=sharing`;
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${menuGid}`;
 
     try {
-        const response = await fetch(exportUrl);
-        if (!response.ok) throw new Error('Cannot access Sheet');
+        // Adding a timestamp to force Google to give us the freshest data
+        const response = await fetch(`${exportUrl}&t=${new Date().getTime()}`);
+        
+        if (!response.ok) throw new Error('Access Denied');
         
         const data = await response.text();
         const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
         
-        // If it still says empty, let's see why
         if (rows.length < 2) {
-            console.log("Raw Data Found:", data);
-            select.innerHTML = "<option>Menu tab is blank or hidden</option>";
+            select.innerHTML = "<option>Sheet is connected but empty</option>";
             return;
         }
 
@@ -211,10 +211,10 @@ async function fetchMenuData() {
         rows.forEach((row, index) => {
             if (index === 0) return; // Skip Header
 
-            // Split by comma
+            // Split by comma, handling quotes
             const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
             
-            // Map: B=1 (Name), D=3 (Price)
+            // Layout: B=1 (Name), D=3 (Price)
             if (cols.length >= 4) {
                 const name = cols[1].replace(/"/g, "").trim();
                 let priceRaw = cols[3].replace(/"/g, "").replace(/[^\d.-]/g, "").trim();
@@ -231,12 +231,12 @@ async function fetchMenuData() {
         });
 
         if(select.options.length === 0) {
-            select.innerHTML = "<option>Data Error: Check Col B & D</option>";
+            select.innerHTML = "<option>Check Data in Columns B and D</option>";
         }
 
     } catch (e) {
         console.error(e);
-        select.innerHTML = "<option>Link Error: Re-check Share Settings</option>";
+        select.innerHTML = "<option>Link Error: Please set Share to 'Anyone'</option>";
     }
 }
     // --- POS LOGIC ---
