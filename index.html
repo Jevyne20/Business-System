@@ -183,21 +183,26 @@
 
 async function fetchMenuData() {
     const select = document.getElementById("drink-select");
-    select.innerHTML = "<option>Loading Menu...</option>";
+    select.innerHTML = "<option>Reading MENU tab...</option>";
 
-    // We use the direct export link which defaults to the first tab
     const sheetId = '1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H';
-    const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+    
+    // REPLACE '0' WITH YOUR ACTUAL GID FROM THE BROWSER URL
+    const menuGid = '0'; 
+    
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${menuGid}`;
 
     try {
         const response = await fetch(exportUrl);
-        if (!response.ok) throw new Error('Could not fetch data');
+        if (!response.ok) throw new Error('Cannot access Sheet');
         
         const data = await response.text();
         const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
         
+        // If it still says empty, let's see why
         if (rows.length < 2) {
-            select.innerHTML = "<option>Sheet appears empty</option>";
+            console.log("Raw Data Found:", data);
+            select.innerHTML = "<option>Menu tab is blank or hidden</option>";
             return;
         }
 
@@ -206,10 +211,10 @@ async function fetchMenuData() {
         rows.forEach((row, index) => {
             if (index === 0) return; // Skip Header
 
-            // Split by comma, handling quotes
-            const cols = row.split(/,(?=(?:(?:[^Parentheses"]*"){2})*[^"]*$)/);
+            // Split by comma
+            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
             
-            // Per your screenshot: Name is Col B (1), Price is Col D (3)
+            // Map: B=1 (Name), D=3 (Price)
             if (cols.length >= 4) {
                 const name = cols[1].replace(/"/g, "").trim();
                 let priceRaw = cols[3].replace(/"/g, "").replace(/[^\d.-]/g, "").trim();
@@ -226,12 +231,12 @@ async function fetchMenuData() {
         });
 
         if(select.options.length === 0) {
-            select.innerHTML = "<option>No items found (Check Col B/D)</option>";
+            select.innerHTML = "<option>Data Error: Check Col B & D</option>";
         }
 
     } catch (e) {
-        console.error("Fetch Error:", e);
-        select.innerHTML = "<option>Link Error: Check Share Settings</option>";
+        console.error(e);
+        select.innerHTML = "<option>Link Error: Re-check Share Settings</option>";
     }
 }
     // --- POS LOGIC ---
