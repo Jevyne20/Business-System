@@ -366,13 +366,16 @@
         }
     }
 
-    async function uploadDailySummary() {
+async function uploadDailySummary() {
         if(localSales.length === 0) return alert("No sales data to upload.");
         
         let totalSales = 0;
         let totalCups = 0;
         let itemQuantities = {};
-        const todayDate = new Date().toLocaleDateString();
+        
+        // Formats date as MM/DD/YYYY to match your Sheet screenshot
+        const now = new Date();
+        const formattedDate = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
 
         localSales.forEach(sale => {
             totalSales += sale.total;
@@ -386,33 +389,39 @@
             .map(([name, qty]) => `${qty}x ${name}`)
             .join(', ');
 
-        // MATCHES YOUR EXCEL: A: Date, B: Total Cups, C: Items, D: Total, E: Branch
+        // This payload structure is key for the new Apps Script
         const payload = {
-            date: todayDate,
+            date: formattedDate,
             totalCups: totalCups,
             itemSummary: summaryItems,
             totalSales: totalSales,
             branch: currentBranch
         };
 
-        const scriptURL = "https://script.google.com/macros/s/AKfycbxfGrIfSdNv2NQeK-iMJpBva_3jTTjgiG7TxN-jxJSbKKkCHfXZA3Y6eJdiLYh9X2z6FA/exec";
+        // Ensure this URL is from your LATEST "New Deployment"
+        const scriptURL = "https://script.google.com/macros/s/AKfycbxKgjWz82xgr4M1v5lIK4FPtm34KTlEFXNoBweghwzY4IuNdrlPt_PMdXjH9-r6FLdMbA/exec";
 
         if(confirm(`Upload Summary for ${currentBranch}?\nCups Sold: ${totalCups}\nTotal: ₱${totalSales.toLocaleString()}`)) {
             try {
+                // Using 'cors' mode now to handle the JSON transfer properly
                 await fetch(scriptURL, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'no-cors', 
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 
-                alert("Upload Successful!");
+                alert("Upload Successful! Your sheet has been updated.");
                 
+                // Clear local session after successful upload
                 localSales = [];
                 orderCounter = 1;
                 saveBranchData();
                 renderSalesLog();
                 
             } catch (e) {
+                console.error("Upload Error:", e);
                 alert("Upload failed. Please check your internet connection.");
             }
         }
