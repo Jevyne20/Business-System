@@ -185,13 +185,14 @@ async function fetchMenuData() {
     const select = document.getElementById("drink-select");
     select.innerHTML = "<option>Connecting to Matcha Menu...</option>";
 
-    // Updated to use the correct export format for your specific sheet
+    // Using your specific Sheet ID
     const sheetId = '1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H';
+    // This format is the most stable for GitHub Pages
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
 
     try {
         const response = await fetch(csvUrl);
-        if (!response.ok) throw new Error('Network error or Private Sheet');
+        if (!response.ok) throw new Error('Private Sheet or Network Error');
         
         const data = await response.text();
         const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
@@ -199,16 +200,17 @@ async function fetchMenuData() {
         select.innerHTML = ""; 
 
         rows.forEach((row, index) => {
-            if (index === 0) return; // Skip "Item ID, Item Name, etc."
+            if (index === 0) return; // Skip Header Row
 
             // Handles commas within quotes correctly
             const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
             
-            // Per your image: Name is Col B (1), Price is Col D (3)
+            // Your sheet has: ID(0), Name(1), Category(2), Price(3)
+            // We need at least 4 columns to reach the Price in Column D
             if (cols.length >= 4) {
                 const name = cols[1].replace(/"/g, "").trim();
                 
-                // Extra cleaning for the price in Column D
+                // Aggressive cleaning for Column D (Price)
                 let priceRaw = cols[3].replace(/"/g, "").replace(/[^\d.-]/g, "").trim();
                 const price = parseFloat(priceRaw);
                 
@@ -223,12 +225,12 @@ async function fetchMenuData() {
         });
 
         if(select.options.length === 0) {
-            select.innerHTML = "<option>Error: Check Column B and D data</option>";
+            select.innerHTML = "<option>Error: Price not found in Column D</option>";
         }
 
     } catch (e) {
         console.error("Fetch failed:", e);
-        select.innerHTML = "<option>Link Error: Please check Share settings</option>";
+        select.innerHTML = "<option>Link Error: Is Sheet Shared to 'Anyone'?</option>";
     }
 }
     // --- POS LOGIC ---
