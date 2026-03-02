@@ -170,7 +170,7 @@
 
 <script>
     // YOUR UPDATED LINK
-    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H/pub?output=csv';
+   const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H/pubhtml';
     
     let currentCart = [];
     let pendingOrders = [];
@@ -183,62 +183,49 @@
 
    async function fetchMenuData() {
     const select = document.getElementById("drink-select");
-    select.innerHTML = "<option>Connecting to Google Sheets...</option>";
+    select.innerHTML = "<option>Loading drinks...</option>";
 
-    // This is the "Direct Export" link which is more reliable than the "Publish" link
-    const sheetId = '1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H';
-    const directUrl = `https://docs.google.com/spreadsheets/d/1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8/export?format=csv&gid=0`;
+    // We use the 'pub?output=csv' format to get raw data
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H/pub?output=csv';
 
     try {
-        const response = await fetch(directUrl);
+        const response = await fetch(csvUrl);
+        if (!response.ok) throw new Error('Could not reach Google Sheets');
         
-        if (!response.ok) {
-            throw new Error(`Google returned status: ${response.status}`);
-        }
-
         const data = await response.text();
         
-        // DEBUG: If you open your browser console (F12), you will see the actual data here
-        console.log("Data from Google:", data);
-
+        // Split by lines and filter out empty ones
         const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
         
-        if (rows.length <= 1) {
-            select.innerHTML = "<option>Sheet is empty or has only headers</option>";
+        if (rows.length < 2) {
+            select.innerHTML = "<option>Sheet is empty!</option>";
             return;
         }
 
-        select.innerHTML = ""; // Clear status
+        select.innerHTML = ""; // Clear the loading message
 
-        rows.forEach((row, index) => {
-            // Skip header row
-            if (index === 0) return;
-
-            // Split by comma, but ignore commas inside quotes
-            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        // Start from index 1 to skip the header row (Name, Price)
+        for (let i = 1; i < rows.length; i++) {
+            // This regex handles names with commas like "Milk Tea, Large"
+            const cols = rows[i].split(/,(?=(?:(?:[^Parentheses"]*"){2})*[^"]*$)/);
             
             if (cols.length >= 2) {
                 const name = cols[0].replace(/"/g, "").trim();
-                const priceValue = cols[1].replace(/"/g, "").replace(/[₱,]/g, "").trim();
-                const price = parseFloat(priceValue);
+                const price = parseFloat(cols[1].replace(/"/g, "").replace(/[₱,]/g, "").trim());
                 
                 if (!isNaN(price) && name !== "") {
                     let opt = document.createElement("option");
                     opt.value = price;
-                    opt.text = `${name} (₱${price.toLocaleString()})`;
+                    opt.text = `${name} (₱${price.toFixed(2)})`;
                     opt.dataset.name = name;
                     select.appendChild(opt);
                 }
             }
-        });
-
-        if(select.options.length === 0) {
-            select.innerHTML = "<option>No valid items found (Check Col A & B)</option>";
         }
 
     } catch (e) {
-        console.error("Fetch failed:", e);
-        select.innerHTML = `<option>Error: ${e.message}. Is Sheet Shared to 'Anyone'?</option>`;
+        console.error("POS Error:", e);
+        select.innerHTML = "<option>Connection Error. Is the sheet published?</option>";
     }
 }
     // --- POS LOGIC ---
