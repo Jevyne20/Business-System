@@ -183,51 +183,55 @@
 
 async function fetchMenuData() {
     const select = document.getElementById("drink-select");
-    select.innerHTML = "<option>Refreshing Matcha Menu...</option>";
+    select.innerHTML = "<option>Loading Menu...</option>";
 
-    // The most reliable 'Published' link format
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H/pub?gid=0&single=true&output=csv';
+    // We use the direct export link which defaults to the first tab
+    const sheetId = '1vQtmBuCJFOoDbfpkOew3oeYV6MpMtD6KwNlVbOJMIHO6fdADgfsn0h0vU3Ed5t_4LK5Ztl0USEVjD_H';
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
     try {
-        const response = await fetch(csvUrl);
-        if (!response.ok) throw new Error('Unauthorized');
+        const response = await fetch(exportUrl);
+        if (!response.ok) throw new Error('Could not fetch data');
         
         const data = await response.text();
         const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
         
+        if (rows.length < 2) {
+            select.innerHTML = "<option>Sheet appears empty</option>";
+            return;
+        }
+
         select.innerHTML = ""; 
 
         rows.forEach((row, index) => {
-            if (index === 0) return; // Skip "Item ID, Item Name, Category, Price"
+            if (index === 0) return; // Skip Header
 
-            // Split by comma, but handle quotes (e.g., "Iced Matcha Latte")
-            const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            // Split by comma, handling quotes
+            const cols = row.split(/,(?=(?:(?:[^Parentheses"]*"){2})*[^"]*$)/);
             
-            // Your Map: B=1 (Name), D=3 (Price)
+            // Per your screenshot: Name is Col B (1), Price is Col D (3)
             if (cols.length >= 4) {
                 const name = cols[1].replace(/"/g, "").trim();
-                
-                // Aggressive cleaning for Column D
                 let priceRaw = cols[3].replace(/"/g, "").replace(/[^\d.-]/g, "").trim();
                 const price = parseFloat(priceRaw);
                 
-                if (name && !isNaN(price)) {
+                if (name !== "" && !isNaN(price)) {
                     let opt = document.createElement("option");
                     opt.value = price;
-                    opt.text = `${name} (₱${price.toFixed(2)})`;
+                    opt.text = `${name} (₱${price.toLocaleString()})`;
                     opt.dataset.name = name;
                     select.appendChild(opt);
                 }
             }
         });
 
-        if (select.options.length === 0) {
-            select.innerHTML = "<option>Data mismatch in Columns B/D</option>";
+        if(select.options.length === 0) {
+            select.innerHTML = "<option>No items found (Check Col B/D)</option>";
         }
 
     } catch (e) {
-        console.error(e);
-        select.innerHTML = "<option>LINK ERROR: Check 'Anyone with link' setting</option>";
+        console.error("Fetch Error:", e);
+        select.innerHTML = "<option>Link Error: Check Share Settings</option>";
     }
 }
     // --- POS LOGIC ---
