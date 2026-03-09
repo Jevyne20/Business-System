@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MatchaBai POS | Tablet Edition</title>
-    <link rel="stylesheet" href="style.css">
+    <title>MatchaBai POS | Dashboard Edition</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: #f4f7f6; overflow-x: hidden; }
         .hidden { display: none !important; }
@@ -48,11 +47,6 @@
             height: calc(100vh - 120px);
         }
 
-        @media (max-width: 1100px) { 
-            .pos-layout { grid-template-columns: 350px 1fr; }
-            .pending-column { grid-column: span 2; }
-        }
-
         .order-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; height: 100%; box-sizing: border-box;}
         .cart-box { flex-grow: 1; overflow-y: auto; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
         
@@ -73,7 +67,6 @@
         .product-card h4 { margin: 0; font-size: 14px; color: #2d3e50; }
         .product-card .price { color: #4CAF50; font-weight: bold; margin-top: 5px; }
 
-        /* Updated Cart Item Design */
         .cart-item { 
             display: flex; flex-direction: column; font-size: 14px; 
             margin-bottom: 8px; padding: 12px; background: #f8f9fa; 
@@ -92,7 +85,16 @@
         .total-display { font-size: 24px; font-weight: bold; margin: 15px 0; text-align: center; color: #2d3e50; border-top: 2px solid #f4f7f6; padding-top: 10px; }
         .done-btn { background: #4CAF50; color: white; border: none; padding: 18px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; font-size: 18px; }
 
-        .sales-summary-card { background: #2d3e50; color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        /* Updated Sales Log Dashboard Styling */
+        .sales-summary-card { 
+            background: #2d3e50; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; 
+            display: flex; gap: 15px; flex-wrap: wrap; align-items: center;
+        }
+        .stat-box { flex: 1; min-width: 100px; border-left: 1px solid #455a64; padding-left: 15px; }
+        .stat-box:first-child { border-left: none; padding-left: 0; }
+        .stat-label { font-size: 11px; color: #cfd8dc; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 22px; font-weight: bold; margin-top: 4px; }
+
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: #f8f9fa; font-size: 12px; text-transform: uppercase; }
@@ -101,7 +103,6 @@
         .modal-card { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; }
         .addon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
         .addon-item-btn { padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; }
-        .addon-item-btn:hover { background: #f0f4f0; border-color: #4CAF50; }
     </style>
 </head>
 <body>
@@ -123,9 +124,7 @@
 
         <div id="sidebar" class="sidebar">
             <button class="close-btn" onclick="toggleMenu()">×</button>
-            <div class="sidebar-header">
-                <span id="active-branch-display">Main</span>
-            </div>
+            <div class="sidebar-header"><span id="active-branch-display">Main</span></div>
             <nav>
                 <button onclick="navigateTo('pos')">🛒 POS System</button>
                 <button onclick="navigateTo('sales')">📊 Sales Log</button>
@@ -141,18 +140,14 @@
                 <div class="pos-layout">
                     <div class="order-container">
                         <h3>Current Order</h3>
-                        <div class="cart-box" id="cart-items">
-                            <p style="text-align:center; color:#999;">Tap items to add</p>
-                        </div>
+                        <div class="cart-box" id="cart-items"><p style="text-align:center; color:#999;">Tap items to add</p></div>
                         <div class="total-display" id="total-price">₱0.00</div>
                         <button class="done-btn" onclick="confirmOrder()">Confirm</button>
                     </div>
-
                     <div>
                         <h3>Menu</h3>
                         <div class="menu-grid" id="tablet-menu"></div>
                     </div>
-
                     <div class="pending-column">
                         <h3>⏳ Pending</h3>
                         <div id="pending-orders-container"></div>
@@ -162,11 +157,27 @@
 
             <section id="sales">
                 <div class="sales-summary-card">
-                    <div>
-                        <span>SESSION TOTAL</span>
-                        <div id="session-total" style="font-size: 32px; font-weight: bold;">₱0.00</div>
+                    <div class="stat-box">
+                        <div class="stat-label">Total Revenue</div>
+                        <div id="session-total" class="stat-value">₱0</div>
                     </div>
-                    <button onclick="uploadDailySummary()" style="background:#4CAF50; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">📤 Upload Data</button>
+                    <div class="stat-box">
+                        <div class="stat-label">Cups Sold</div>
+                        <div id="total-cups" class="stat-value" style="color: #4CAF50;">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Oatside</div>
+                        <div id="total-oatside" class="stat-value" style="color: #2196F3;">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Cash</div>
+                        <div id="total-cash" class="stat-value" style="color: #FF9800;">₱0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Gcash</div>
+                        <div id="total-gcash" class="stat-value" style="color: #03A9F4;">₱0</div>
+                    </div>
+                    <button onclick="uploadDailySummary()" style="background:#4CAF50; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; margin-left: 10px;">📤 Upload</button>
                 </div>
                 <table>
                     <thead>
@@ -176,15 +187,8 @@
                 </table>
             </section>
 
-            <section id="attendance">
-                <h2>Attendance</h2>
-                <div class="order-container" style="max-width: 600px;"><p>Track staff check-ins here.</p></div>
-            </section>
-
-            <section id="expenses">
-                <h2>Expenses</h2>
-                <div class="order-container" style="max-width: 600px;"><p>Log daily operational costs here.</p></div>
-            </section>
+            <section id="attendance"><h2>Attendance</h2><p>Track staff check-ins here.</p></section>
+            <section id="expenses"><h2>Expenses</h2><p>Log daily operational costs here.</p></section>
         </div>
     </div>
 
@@ -223,7 +227,7 @@
         const menuContainer = document.getElementById("tablet-menu");
         const exportUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
         try {
-            const response = await fetch(`${exportUrl}&t=${new Date().getTime()}`);
+            const response = await fetch(`${exportUrl}&t=${Date.now()}`);
             const data = await response.text();
             const rows = data.split(/\r?\n/).filter(row => row.trim() !== "").slice(1);
             menuContainer.innerHTML = ''; 
@@ -234,10 +238,7 @@
                 if (name && !isNaN(price)) {
                     const card = document.createElement("div");
                     card.className = "product-card";
-                    card.onclick = () => {
-                        currentCart.push({ name, price, subtotal: price, qty: 1 });
-                        renderCart();
-                    };
+                    card.onclick = () => { currentCart.push({ name, price, subtotal: price, qty: 1 }); renderCart(); };
                     card.innerHTML = `<h4>${name}</h4><div class="price">₱${price.toFixed(2)}</div>`;
                     menuContainer.appendChild(card);
                 }
@@ -248,7 +249,7 @@
     async function fetchAddonData() {
         const exportUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1341155579`;
         try {
-            const response = await fetch(`${exportUrl}&t=${new Date().getTime()}`);
+            const response = await fetch(`${exportUrl}&t=${Date.now()}`);
             const data = await response.text();
             const rows = data.split(/\r?\n/).filter(row => row.trim() !== "").slice(1);
             addonsList = rows.map(row => {
@@ -268,21 +269,12 @@
         let total = 0;
         cartDiv.innerHTML = currentCart.map((item, index) => {
             total += item.subtotal;
-            
-            // Logic: Hide the add-on button if the item name contains "FRIES"
-            const isFries = item.name.toUpperCase().includes("Fries".toUpperCase());
+            const isFries = item.name.toUpperCase().includes("FRIES");
             const addonBtn = isFries ? '' : `<button class="btn-add-on" onclick="openAddonModal(${index})">+ Add</button>`;
-
             return `
                 <div class="cart-item">
-                    <div class="cart-item-info">
-                        <span>${item.qty}x ${item.name}</span>
-                        <span>₱${item.subtotal.toLocaleString()}</span>
-                    </div>
-                    <div class="cart-item-btns">
-                        ${addonBtn}
-                        <button class="btn-item-del" onclick="removeFromCart(${index})">X</button>
-                    </div>
+                    <div class="cart-item-info"><span>${item.qty}x ${item.name}</span><span>₱${item.subtotal.toLocaleString()}</span></div>
+                    <div class="cart-item-btns">${addonBtn}<button class="btn-item-del" onclick="removeFromCart(${index})">X</button></div>
                 </div>`;
         }).join('');
         document.getElementById("total-price").innerText = `₱${total.toLocaleString()}`;
@@ -292,11 +284,7 @@
         activeCartIndex = index;
         document.getElementById("target-item-label").innerText = currentCart[index].name;
         const grid = document.getElementById("addon-selection-area");
-        grid.innerHTML = addonsList.map(addon => `
-            <button class="addon-item-btn" onclick="applyAddon('${addon.name}', ${addon.price})">
-                ${addon.name}<br><small>+₱${addon.price}</small>
-            </button>
-        `).join('');
+        grid.innerHTML = addonsList.map(addon => `<button class="addon-item-btn" onclick="applyAddon('${addon.name}', ${addon.price})">${addon.name}<br><small>+₱${addon.price}</small></button>`).join('');
         document.getElementById("addon-modal").classList.remove("hidden");
     }
 
@@ -311,19 +299,7 @@
         closeAddonModal();
     }
 
-    function removeFromCart(index) {
-        currentCart.splice(index, 1);
-        renderCart();
-    }
-
-    function confirmOrder() {
-        if (currentCart.length === 0) return;
-        document.getElementById("payment-total-display").innerText = document.getElementById("total-price").innerText;
-        document.getElementById("payment-modal").classList.remove("hidden");
-    }
-
     function processFinalTransaction(method) {
-        if (pendingOrders.length === 0 && localSales.length === 0) { orderCounter = 1; }
         const total = currentCart.reduce((sum, i) => sum + i.subtotal, 0);
         pendingOrders.push({ id: orderCounter++, items: [...currentCart], total, method });
         saveBranchData();
@@ -334,18 +310,11 @@
     function renderPending() {
         const container = document.getElementById("pending-orders-container");
         container.innerHTML = pendingOrders.map((order, index) => `
-            <div class="order-card" id="card-${order.id}" onclick="document.getElementById('card-${order.id}').classList.toggle('expanded')">
-                <div style="display:flex; justify-content:space-between;">
-                    <strong>#${index + 1}</strong> 
-                    <span style="font-size:10px; background:#eee; padding:2px 5px; border-radius:3px;">${order.method}</span>
-                </div>
-                <div style="font-size:13px; margin-top:5px;">₱${order.total.toLocaleString()}</div>
+            <div class="order-card" onclick="this.classList.toggle('expanded')">
+                <strong>#${index + 1}</strong> [${order.method}] - ₱${order.total.toLocaleString()}
                 <div class="details">
-                    ${order.items.map(i => `<div style="font-size:12px;">• ${i.qty}x ${i.name}</div>`).join('')}
-                    <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button onclick="finalizeOrder(event, ${order.id})" style="flex:1; padding:10px; background:#4CAF50; color:white; border:none; border-radius:5px;">✔ Done</button>
-                        <button onclick="removeOrder(event, ${order.id})" style="padding:10px; background:#ff5252; color:white; border:none; border-radius:5px;">✖</button>
-                    </div>
+                    ${order.items.map(i => `<div>• ${i.qty}x ${i.name}</div>`).join('')}
+                    <button onclick="finalizeOrder(event, ${order.id})" style="width:100%; background:#4CAF50; color:white; border:none; padding:10px; margin-top:10px; border-radius:5px;">Finish</button>
                 </div>
             </div>
         `).join('');
@@ -355,28 +324,35 @@
         event.stopPropagation();
         const idx = pendingOrders.findIndex(o => o.id === id);
         const order = pendingOrders[idx];
-        localSales.push({
-            date: new Date().toLocaleDateString([], { month: 'short', day: 'numeric' }),
-            items: order.items, total: order.total, method: order.method
-        });
+        localSales.push({ items: order.items, total: order.total, method: order.method });
         saveBranchData(); renderSalesLog(); pendingOrders.splice(idx, 1); renderPending();
     }
 
     function renderSalesLog() {
         const body = document.getElementById("sales-history-body");
-        let total = 0;
+        let revenue = 0, cups = 0, oatside = 0, cash = 0, gcash = 0;
+
         const history = [...localSales].reverse();
         body.innerHTML = history.map((sale, i) => {
-            total += sale.total;
-            const actualIdx = localSales.length - 1 - i;
-            return `<tr><td>#${actualIdx + 1}</td><td>${sale.items.map(it => `${it.qty}x ${it.name}`).join(', ')}</td><td>${sale.method}</td><td>₱${sale.total.toLocaleString()}</td><td><button onclick="deleteSaleEntry(${actualIdx})" style="background:#ff5252; color:white; border:none; padding:5px 10px; border-radius:4px;">X</button></td></tr>`;
-        }).join('');
-        document.getElementById("session-total").innerText = `₱${total.toLocaleString()}`;
-    }
+            revenue += sale.total;
+            if (sale.method === 'CASH') cash += sale.total;
+            else gcash += sale.total;
 
-    function saveBranchData() {
-        localStorage.setItem(`matchaSalesLog_${currentBranch}`, JSON.stringify(localSales));
-        localStorage.setItem(`matchaOrderCounter_${currentBranch}`, orderCounter);
+            sale.items.forEach(item => {
+                const name = item.name.toUpperCase();
+                if (!name.includes("FRIES")) cups += item.qty;
+                if (name.includes("OATSIDE")) oatside += item.qty;
+            });
+
+            const actualIdx = localSales.length - 1 - i;
+            return `<tr><td>#${actualIdx+1}</td><td>${sale.items.map(it => `${it.qty}x ${it.name}`).join(', ')}</td><td>${sale.method}</td><td>₱${sale.total.toLocaleString()}</td><td><button onclick="deleteSaleEntry(${actualIdx})" style="background:#ff5252; color:white; border:none; padding:5px 10px; border-radius:4px;">X</button></td></tr>`;
+        }).join('');
+
+        document.getElementById("session-total").innerText = `₱${revenue.toLocaleString()}`;
+        document.getElementById("total-cups").innerText = cups;
+        document.getElementById("total-oatside").innerText = oatside;
+        document.getElementById("total-cash").innerText = `₱${cash.toLocaleString()}`;
+        document.getElementById("total-gcash").innerText = `₱${gcash.toLocaleString()}`;
     }
 
     function selectBranch(name) {
@@ -395,19 +371,22 @@
         if(document.getElementById("sidebar").classList.contains("open")) toggleMenu();
     }
 
-    function toggleMenu() { document.getElementById("sidebar").classList.toggle("open"); }
+    function saveBranchData() {
+        localStorage.setItem(`matchaSalesLog_${currentBranch}`, JSON.stringify(localSales));
+        localStorage.setItem(`matchaOrderCounter_${currentBranch}`, orderCounter);
+    }
+    function removeFromCart(index) { currentCart.splice(index, 1); renderCart(); }
+    function deleteSaleEntry(i) { if(confirm("Delete?")) { localSales.splice(i, 1); saveBranchData(); renderSalesLog(); } }
+    function confirmOrder() { if (currentCart.length > 0) { document.getElementById("payment-total-display").innerText = document.getElementById("total-price").innerText; document.getElementById("payment-modal").classList.remove("hidden"); } }
     function closeAddonModal() { document.getElementById("addon-modal").classList.add("hidden"); }
     function closePaymentModal() { document.getElementById("payment-modal").classList.add("hidden"); }
-    function removeOrder(event, id) { event.stopPropagation(); pendingOrders = pendingOrders.filter(o => o.id !== id); renderPending(); }
-    function deleteSaleEntry(i) { if(confirm("Delete?")) { localSales.splice(i, 1); saveBranchData(); renderSalesLog(); } }
+    function toggleMenu() { document.getElementById("sidebar").classList.toggle("open"); }
 
     function renderBranches() {
         const list = document.getElementById("branch-list");
         let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
         let html = `<button onclick="selectBranch('Main Branch')" style="width:100%; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px; font-weight:bold; margin-bottom:10px;">🏠 Main Branch</button>`;
-        branches.forEach((b, i) => {
-            html += `<div style="display:flex; margin-bottom:10px;"><button onclick="selectBranch('${b}')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px 0 0 8px;">📍 ${b}</button><button onclick="deleteBranch(${i})" style="background:#ff5252; color:white; border:none; width:45px; border-radius:0 8px 8px 0;">×</button></div>`;
-        });
+        branches.forEach((b, i) => { html += `<div style="display:flex; margin-bottom:10px;"><button onclick="selectBranch('${b}')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px 0 0 8px;">📍 ${b}</button><button onclick="deleteBranch(${i})" style="background:#ff5252; color:white; border:none; width:45px; border-radius:0 8px 8px 0;">×</button></div>`; });
         list.innerHTML = html;
     }
 
@@ -416,15 +395,6 @@
         if(name) {
             let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
             branches.push(name);
-            localStorage.setItem("matchaBranches", JSON.stringify(branches));
-            renderBranches();
-        }
-    }
-
-    function deleteBranch(i) {
-        if(confirm("Remove this branch?")) {
-            let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
-            branches.splice(i, 1);
             localStorage.setItem("matchaBranches", JSON.stringify(branches));
             renderBranches();
         }
