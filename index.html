@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MatchaBai POS | Tablet Edition</title>
+    <title>MatchaBai POS | Oatside Edition</title>
     <link rel="stylesheet" href="style.css">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: #f4f7f6; overflow-x: hidden; }
@@ -80,6 +80,14 @@
         }
         .cart-item:hover { background: #feebeb; color: #ff5252; }
 
+        /* Oatside Button Styling */
+        .oatside-btn {
+            background: #f3e9dc; color: #5d4037; border: 2px solid #d7ccc8;
+            padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer;
+            margin-bottom: 10px; font-size: 14px; transition: 0.2s;
+        }
+        .oatside-btn:active { background: #efe0cc; transform: translateY(2px); }
+
         .order-card { border: 2px solid #FF9800; background: white; border-radius: 10px; padding: 12px; cursor: pointer; transition: 0.3s; margin-bottom: 10px;}
         .order-card.expanded { background: #fffdf9; }
         .order-card .details { display: none; margin-top: 10px; border-top: 1px dotted #FF9800; padding-top: 10px; }
@@ -138,6 +146,9 @@
                             <p style="text-align:center; color:#999;">Tap items to add</p>
                         </div>
                         <div class="total-display" id="total-price">₱0.00</div>
+                        
+                        <button class="oatside-btn" onclick="applyOatsideSwap()">🥛 Upgrade to Oatside (+₱35)</button>
+                        
                         <button class="done-btn" onclick="confirmOrder()">Confirm</button>
                     </div>
 
@@ -250,6 +261,22 @@
                     </div>`;
         }).join('');
         document.getElementById("total-price").innerText = `₱${total.toLocaleString()}`;
+    }
+
+    function applyOatsideSwap() {
+        if (currentCart.length === 0) return;
+        
+        // Target the last item added
+        let lastItem = currentCart[currentCart.length - 1];
+
+        // Only swap if it's not already swapped
+        if (lastItem.name.includes("+ Oatside")) return;
+
+        lastItem.name += " + Oatside";
+        lastItem.price += 35; // Change this to your preferred add-on price
+        lastItem.subtotal = lastItem.qty * lastItem.price;
+
+        renderCart();
     }
 
     function removeFromCart(index) {
