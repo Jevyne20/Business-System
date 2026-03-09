@@ -41,18 +41,7 @@ body {
     font-weight: bold;
 }
 
-.add-branch-trigger {
-    background: transparent;
-    color: #4CAF50;
-    border: 2px dashed #4CAF50;
-    padding: 10px;
-    width: 100%;
-    margin-top: 15px;
-    cursor: pointer;
-    border-radius: 8px;
-}
-
-/* Modal Popup */
+/* Modal Popup (Used for Branch & Payment) */
 .modal-overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -67,6 +56,7 @@ body {
     border-radius: 12px;
     width: 320px;
     text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
 .modal-card input {
@@ -78,34 +68,6 @@ body {
     border-radius: 6px;
 }
 
-.modal-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.cancel-btn { background: #ff5252; color: white; border: none; padding: 12px; flex: 1; border-radius: 6px; cursor: pointer; }
-.done-btn { background: #4CAF50; color: white; border: none; padding: 12px; flex: 1; border-radius: 6px; cursor: pointer; }
-
-/* Main System UI */
-header {
-    background-color: #2d3e50;
-    color: white;
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.menu-toggle {
-    background: #4CAF50;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    cursor: pointer;
-    border-radius: 5px;
-}
-
 /* Sidebar Navigation */
 .sidebar {
     height: 100%;
@@ -113,9 +75,8 @@ header {
     position: fixed;
     top: 0; left: -250px;
     background-color: #2d3e50;
-    transition: 0.3s;
-    z-index: 1000;
-    padding-top: 60px;
+    transition: 0.3s ease-in-out;
+    z-index: 1600;
 }
 
 .sidebar.open { left: 0; }
@@ -127,64 +88,56 @@ header {
     color: white; font-size: 30px; cursor: pointer;
 }
 
-nav button {
-    display: block;
-    width: 85%;
-    margin: 10px auto;
-    padding: 15px;
-    background: none;
-    border: 1px solid #455a64;
-    color: white;
-    text-align: left;
-    cursor: pointer;
-    border-radius: 5px;
-}
-
-/* Container for branch button and delete icon */
+/* Branch List Styling */
 .branch-item {
-    position: relative;
     display: flex;
-    align-items: center;
-    margin: 10px 0;
+    margin-bottom: 10px;
 }
 
-.branch-item button {
-    flex-grow: 1;
-    margin: 0 !important; /* Override previous margin */
+.branch-item button:first-child {
+    flex: 1;
+    padding: 15px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 8px 0 0 8px;
+    font-weight: bold;
+    cursor: pointer;
 }
 
-/* The Delete (X) Button */
+/* Special case for Main Branch (No delete button) */
+.branch-item.main button {
+    border-radius: 8px !important;
+}
+
 .delete-icon {
     background-color: #ff5252;
     color: white;
-    width: 30px;
-    height: 45px; /* Match the height of your branch buttons */
+    width: 45px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     border-radius: 0 8px 8px 0;
     font-weight: bold;
-    font-size: 20px;
-    transition: 0.2s;
+    border: none;
 }
 
-.delete-icon:hover {
-    background-color: #d32f2f;
+/* Table Styling for Sales Log */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
 }
 
-/* Adjust the branch button to fit the delete icon */
-.branch-item button {
-    border-radius: 8px 0 0 8px !important;
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
 }
 
-/* Default Main Branch doesn't have a delete icon, so give it full corners */
-.branch-item:first-child button {
-    border-radius: 8px !important;
+th {
+    background-color: #f8f9fa;
+    font-size: 12px;
+    color: #888;
 }
-
-nav button:hover { background-color: #4CAF50; }
-
-.content { padding: 30px; }
-section { display: none; }
-section.active { display: block; }
