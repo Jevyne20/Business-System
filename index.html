@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MatchaBai POS | Oatside Edition</title>
+    <title>MatchaBai POS | Tablet Edition</title>
     <link rel="stylesheet" href="style.css">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background-color: #f4f7f6; overflow-x: hidden; }
@@ -73,20 +73,16 @@
         .product-card h4 { margin: 0; font-size: 14px; color: #2d3e50; }
         .product-card .price { color: #4CAF50; font-weight: bold; margin-top: 5px; }
 
+        /* Updated Cart Item Design */
         .cart-item { 
-            display: flex; justify-content: space-between; font-size: 14px; 
-            margin-bottom: 5px; padding: 12px; background: #f8f9fa; 
-            border-radius: 8px; cursor: pointer;
+            display: flex; flex-direction: column; font-size: 14px; 
+            margin-bottom: 8px; padding: 12px; background: #f8f9fa; 
+            border-radius: 8px; border-left: 4px solid #4CAF50;
         }
-        .cart-item:hover { background: #feebeb; color: #ff5252; }
-
-        /* Oatside Button Styling */
-        .oatside-btn {
-            background: #f3e9dc; color: #5d4037; border: 2px solid #d7ccc8;
-            padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer;
-            margin-bottom: 10px; font-size: 14px; transition: 0.2s;
-        }
-        .oatside-btn:active { background: #efe0cc; transform: translateY(2px); }
+        .cart-item-info { display: flex; justify-content: space-between; font-weight: bold; }
+        .cart-item-btns { display: flex; gap: 8px; margin-top: 8px; }
+        .btn-add-on { flex: 1; background: #FF9800; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; }
+        .btn-item-del { background: #ff5252; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
 
         .order-card { border: 2px solid #FF9800; background: white; border-radius: 10px; padding: 12px; cursor: pointer; transition: 0.3s; margin-bottom: 10px;}
         .order-card.expanded { background: #fffdf9; }
@@ -103,6 +99,9 @@
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 2100; }
         .modal-card { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; }
+        .addon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .addon-item-btn { padding: 12px; border: 1px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-size: 13px; font-weight: 500; }
+        .addon-item-btn:hover { background: #f0f4f0; border-color: #4CAF50; }
     </style>
 </head>
 <body>
@@ -146,9 +145,6 @@
                             <p style="text-align:center; color:#999;">Tap items to add</p>
                         </div>
                         <div class="total-display" id="total-price">₱0.00</div>
-                        
-                        <button class="oatside-btn" onclick="applyOatsideSwap()">🥛 Upgrade to Oatside (+₱35)</button>
-                        
                         <button class="done-btn" onclick="confirmOrder()">Confirm</button>
                     </div>
 
@@ -192,6 +188,14 @@
         </div>
     </div>
 
+    <div id="addon-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h3>Add Modifiers to <br><span id="target-item-label" style="color:#4CAF50;"></span></h3>
+            <div class="addon-grid" id="addon-selection-area"></div>
+            <button onclick="closeAddonModal()" style="margin-top:20px; width:100%; padding:10px; background:#eee; border:none; border-radius:8px; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+
     <div id="payment-modal" class="modal-overlay hidden">
         <div class="modal-card">
             <h3>Select Payment</h3>
@@ -207,41 +211,50 @@
     let pendingOrders = [];
     let currentBranch = "";
     let localSales = [];
+    let addonsList = [];
     let orderCounter = 1;
+    let activeCartIndex = null;
 
-    window.onload = function() { renderBranches(); fetchMenuData(); };
+    const SHEET_ID = '1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8';
+
+    window.onload = function() { renderBranches(); fetchMenuData(); fetchAddonData(); };
 
     async function fetchMenuData() {
         const menuContainer = document.getElementById("tablet-menu");
-        const sheetId = '1vLw8T4-9ODhbTDqlSN6OUDStpbqGX_uDB6Hq8xz8Ew8';
-        const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-
+        const exportUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
         try {
             const response = await fetch(`${exportUrl}&t=${new Date().getTime()}`);
             const data = await response.text();
-            const rows = data.split(/\r?\n/).filter(row => row.trim() !== "");
+            const rows = data.split(/\r?\n/).filter(row => row.trim() !== "").slice(1);
             menuContainer.innerHTML = ''; 
-
-            rows.forEach((row, index) => {
-                if (index === 0) return; 
+            rows.forEach(row => {
                 const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                if (cols.length >= 4) {
-                    const name = cols[1].replace(/"/g, "").trim();
-                    let price = parseFloat(cols[3].replace(/"/g, "").replace(/[^\d.-]/g, "").trim());
-                    if (name !== "" && !isNaN(price)) {
-                        const card = document.createElement("div");
-                        card.className = "product-card";
-                        card.onclick = () => {
-                            const existing = currentCart.find(item => item.name === name);
-                            if(existing) { existing.qty++; existing.subtotal = existing.qty * existing.price; }
-                            else { currentCart.push({ name, price, qty: 1, subtotal: price }); }
-                            renderCart();
-                        };
-                        card.innerHTML = `<h4>${name}</h4><div class="price">₱${price.toFixed(2)}</div>`;
-                        menuContainer.appendChild(card);
-                    }
+                const name = cols[1]?.replace(/"/g, "").trim();
+                const price = parseFloat(cols[3]?.replace(/[^\d.-]/g, ""));
+                if (name && !isNaN(price)) {
+                    const card = document.createElement("div");
+                    card.className = "product-card";
+                    card.onclick = () => {
+                        currentCart.push({ name, price, subtotal: price, qty: 1 });
+                        renderCart();
+                    };
+                    card.innerHTML = `<h4>${name}</h4><div class="price">₱${price.toFixed(2)}</div>`;
+                    menuContainer.appendChild(card);
                 }
             });
+        } catch (e) { console.error(e); }
+    }
+
+    async function fetchAddonData() {
+        const exportUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1341155579`;
+        try {
+            const response = await fetch(`${exportUrl}&t=${new Date().getTime()}`);
+            const data = await response.text();
+            const rows = data.split(/\r?\n/).filter(row => row.trim() !== "").slice(1);
+            addonsList = rows.map(row => {
+                const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                return { name: cols[1]?.replace(/"/g, "").trim(), price: parseFloat(cols[3]?.replace(/[^\d.-]/g, "")) };
+            }).filter(a => a.name && !isNaN(a.price));
         } catch (e) { console.error(e); }
     }
 
@@ -255,35 +268,46 @@
         let total = 0;
         cartDiv.innerHTML = currentCart.map((item, index) => {
             total += item.subtotal;
-            return `<div class="cart-item" onclick="removeFromCart(${index})">
+            return `
+                <div class="cart-item">
+                    <div class="cart-item-info">
                         <span>${item.qty}x ${item.name}</span>
                         <span>₱${item.subtotal.toLocaleString()}</span>
-                    </div>`;
+                    </div>
+                    <div class="cart-item-btns">
+                        <button class="btn-add-on" onclick="openAddonModal(${index})">+ Add</button>
+                        <button class="btn-item-del" onclick="removeFromCart(${index})">X</button>
+                    </div>
+                </div>`;
         }).join('');
         document.getElementById("total-price").innerText = `₱${total.toLocaleString()}`;
     }
 
-    function applyOatsideSwap() {
-        if (currentCart.length === 0) return;
-        
-        // Target the last item added
-        let lastItem = currentCart[currentCart.length - 1];
+    function openAddonModal(index) {
+        activeCartIndex = index;
+        document.getElementById("target-item-label").innerText = currentCart[index].name;
+        const grid = document.getElementById("addon-selection-area");
+        grid.innerHTML = addonsList.map(addon => `
+            <button class="addon-item-btn" onclick="applyAddon('${addon.name}', ${addon.price})">
+                ${addon.name}<br><small>+₱${addon.price}</small>
+            </button>
+        `).join('');
+        document.getElementById("addon-modal").classList.remove("hidden");
+    }
 
-        // Only swap if it's not already swapped
-        if (lastItem.name.includes("+ Oatside")) return;
-
-        lastItem.name += " + Oatside";
-        lastItem.price += 35; // Change this to your preferred add-on price
-        lastItem.subtotal = lastItem.qty * lastItem.price;
-
-        renderCart();
+    function applyAddon(addonName, addonPrice) {
+        const item = currentCart[activeCartIndex];
+        if (!item.name.includes(addonName)) {
+            item.name += ` + ${addonName}`;
+            item.price += addonPrice;
+            item.subtotal = item.qty * item.price;
+            renderCart();
+        }
+        closeAddonModal();
     }
 
     function removeFromCart(index) {
-        if(currentCart[index].qty > 1) {
-            currentCart[index].qty--;
-            currentCart[index].subtotal = currentCart[index].qty * currentCart[index].price;
-        } else { currentCart.splice(index, 1); }
+        currentCart.splice(index, 1);
         renderCart();
     }
 
@@ -296,8 +320,7 @@
     function processFinalTransaction(method) {
         if (pendingOrders.length === 0 && localSales.length === 0) { orderCounter = 1; }
         const total = currentCart.reduce((sum, i) => sum + i.subtotal, 0);
-        pendingOrders.push({ id: orderCounter, items: [...currentCart], total: total, method: method });
-        orderCounter++;
+        pendingOrders.push({ id: orderCounter++, items: [...currentCart], total, method });
         saveBranchData();
         currentCart = []; renderCart(); renderPending();
         document.getElementById("payment-modal").classList.add("hidden");
@@ -305,7 +328,6 @@
 
     function renderPending() {
         const container = document.getElementById("pending-orders-container");
-        if (pendingOrders.length === 0) { container.innerHTML = ""; return; }
         container.innerHTML = pendingOrders.map((order, index) => `
             <div class="order-card" id="card-${order.id}" onclick="document.getElementById('card-${order.id}').classList.toggle('expanded')">
                 <div style="display:flex; justify-content:space-between;">
@@ -365,10 +387,11 @@
     function navigateTo(id) {
         document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        toggleMenu();
+        if(document.getElementById("sidebar").classList.contains("open")) toggleMenu();
     }
 
     function toggleMenu() { document.getElementById("sidebar").classList.toggle("open"); }
+    function closeAddonModal() { document.getElementById("addon-modal").classList.add("hidden"); }
     function closePaymentModal() { document.getElementById("payment-modal").classList.add("hidden"); }
     function removeOrder(event, id) { event.stopPropagation(); pendingOrders = pendingOrders.filter(o => o.id !== id); renderPending(); }
     function deleteSaleEntry(i) { if(confirm("Delete?")) { localSales.splice(i, 1); saveBranchData(); renderSalesLog(); } }
@@ -381,6 +404,25 @@
             html += `<div style="display:flex; margin-bottom:10px;"><button onclick="selectBranch('${b}')" style="flex:1; padding:15px; background:#4CAF50; color:white; border:none; border-radius:8px 0 0 8px;">📍 ${b}</button><button onclick="deleteBranch(${i})" style="background:#ff5252; color:white; border:none; width:45px; border-radius:0 8px 8px 0;">×</button></div>`;
         });
         list.innerHTML = html;
+    }
+
+    function openAddBranchModal() {
+        let name = prompt("Enter Branch Name:");
+        if(name) {
+            let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
+            branches.push(name);
+            localStorage.setItem("matchaBranches", JSON.stringify(branches));
+            renderBranches();
+        }
+    }
+
+    function deleteBranch(i) {
+        if(confirm("Remove this branch?")) {
+            let branches = JSON.parse(localStorage.getItem("matchaBranches")) || [];
+            branches.splice(i, 1);
+            localStorage.setItem("matchaBranches", JSON.stringify(branches));
+            renderBranches();
+        }
     }
 </script>
 </body>
